@@ -1,0 +1,30 @@
+{
+  "name": "animelistbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./src/animelistbot.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tsc": "tsc --build tsconfig.json",
+    "dev": "ts-node-dev --respawn src/animelistbot.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/mongodb": "^3.3.14",
+    "@types/node": "^13.5.0",
+    "ts-node-dev": "^1.0.0-pre.44",
+    "typescript": "^3.7.5"
+  },
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "jikan-node": "^1.2.0",
+    "jikants": "^1.2.13",
+    "moment": "^2.24.0",
+    "mongodb": "^3.5.2",
+    "telegraf": "^3.36.0",
+    "telegraf-inline-menu": "^4.0.0",
+    "telegraf-session-mongodb": "^1.2.1"
+  }
+}

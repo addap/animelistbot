@@ -1,0 +1,10 @@
+/start
+
+/add Title -> Bot does fuzzy lookup of title on myanimelist and returns list of results. inline keyboard to switch between results and choose the correct one
+/watch (alias, amt)+ -> increase the watched counter on the aliases by amt. If the watched counter is the maximum the anime gets moved to done
+/drop alias+ -> move title to dropped
+/set (alias, amt)+ -> secret. just sets the counter
+/url (alias, url) -> set a link to a streaming site where the anime can be watched
+
+develop locally by using ngrok to proxy webhook
+
