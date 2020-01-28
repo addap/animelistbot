@@ -8,4 +8,8 @@
 
 develop locally by using ngrok to proxy webhook
 
-* TODO attribute wallpaper abyss in help command of Bot (or use a @via annotation when posting the image if possible)
+* DONE attribute wallpaper abyss in help command of Bot (or use a @via annotation when posting the image if possible)
+* TODO build menu for /watched
+page through watchlist and increase episode count
+* TODO remove animes that have been watched fully from watchlist and save in finished list
+* TODO maybe use fuzzy string matching instead of numbers

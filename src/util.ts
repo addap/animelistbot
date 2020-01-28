@@ -1,7 +1,10 @@
 import {Search} from 'jikants/dist/src/interfaces/search/Search';
-import { ExtraReplyMessage, InlineKeyboardMarkup } from 'telegraf/typings/telegram-types';
-import { Extra, Markup, CallbackButton } from 'telegraf';
+import {AnimeById} from 'jikants/dist/src/interfaces/anime/ById';
+import { InlineKeyboardMarkup } from 'telegraf/typings/telegram-types';
+import { Markup, CallbackButton } from 'telegraf';
 import moment from 'moment';
+const Jikan = require('jikan-node');
+const mal = new Jikan();
 
 // declare Result type here b/c JikanTS does not export it
 type Result = Search['results'][0];
@@ -36,16 +39,23 @@ export function formatSearchKeyboard(session: AnimeListBotSession): Markup & Inl
     return Markup.inlineKeyboard(buttons);
 }
 
-export function formatWatchlist(watchlist: Watchlist): string {
+export function formatAnimes(watchlist: Anime[]): string {
+    return watchlist.reduce((s, r, i) => `${s}\n${i+1}. [${r.title}](${r.url}) (${r.episode}/${r.episodeMax})`, '');
+}
+
+export function formatWatchlist(watchlist: Anime[]): string {
     if (watchlist.length > 0)
-        return watchlist.reduce((s, r, i) => `${s}\n${i+1}. [${r.title}](${r.url}) (${r.episode}/${r.episodeMax})`, '');
+        return formatAnimes(watchlist)
     else
-        return "Watchlist empty. You should weeb more.";
+        return "Watchlist empty. You should weeb more 🍣";
 
 }
 
-export function watchlistEntry(anime: Result): WatchlistEntry {
+export async function watchlistEntry(r: Result): Promise<Anime> {
+    const anime: AnimeById = await mal.findAnime(r.mal_id);
+
     return {
+        title_english: anime.title_english,
         title: anime.title,
         episode: 0,
         episodeMax: anime.episodes,
@@ -57,12 +67,14 @@ export function watchlistEntry(anime: Result): WatchlistEntry {
 export interface AnimeListBotSession {
     search: Result[];
     page: number;
-    watchlist: Watchlist;
+    watchlist: Anime[];
+    finished: Anime[];
+    dropped: Anime[];
+
 }
 
-export type Watchlist = WatchlistEntry[];
-
-export interface WatchlistEntry {
+export interface Anime {
+    title_english: string;
     title: string;
     episode: number;
     episodeMax: number;
