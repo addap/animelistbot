@@ -8,6 +8,7 @@ const {TelegrafMongoSession} = require('telegraf-session-mongodb');
 import dotenv from 'dotenv';
 import { formatSearchResults, formatSearchKeyboard, formatWatchlist, watchlistEntry, AnimeListBotSession, formatResult } from './util';
 import { ExtraReplyMessage } from 'telegraf/typings/telegram-types';
+import { Search } from 'jikants/dist/src/interfaces/search/Search';
 
 dotenv.config();
 
@@ -33,7 +34,8 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
     bot.start(async (ctx) => {
         ctx.session.watchlist = [];
         ctx.session.page = 0;
-        await ctx.reply("Hello, I'm the anime list bot");
+        ctx.session.search = [];
+        return ctx.reply("Hello, I'm the anime list bot");
     }); 
     bot.command("test", Telegraf.reply("Successful test"));
 
@@ -47,42 +49,37 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
         // or rather ts-node-dev does not support es6 modules
         // const search = await MAL.Search.search(title, 'anime');
         // untyped but at least if fucking works
-        ctx.session.search = await mal.search('anime', title);
+        const search: Search = await mal.search('anime', title);
+        ctx.session.search = search.results.filter(({mal_id}) => 
+            !ctx.session.watchlist.some((w) => w.mal_id === mal_id));
         ctx.session.page = 0;
 
-        if (ctx.session.search === undefined) {
-            await ctx.reply(`Sorry I could not find anything with that name ${title}`);
+        if (ctx.session.search.length === 0) {
+            return ctx.reply(`Sorry I could not find anything with that name ${title}`);
         } else {
-            await ctx.reply(formatSearchResults(ctx.session.search, ctx.session.page), defaultExtra.markup(formatSearchKeyboard(ctx.session.search, ctx.session.page)));
+            return ctx.reply(formatSearchResults(ctx.session), defaultExtra.markup(formatSearchKeyboard(ctx.session)));
         }
     });
 
     bot.action('next', async (ctx) => {
-        const search = ctx.session.search!;
-        const page = ctx.session.page + 1;
-
-        await ctx.editMessageText(formatSearchResults(search, page), defaultExtra.markup(formatSearchKeyboard(search, page)));
-        ctx.session.page = page;
+        ctx.session.page++;
+        await ctx.editMessageText(formatSearchResults(ctx.session), defaultExtra.markup(formatSearchKeyboard(ctx.session)));
     });
 
     bot.action('prev', async (ctx) => {
-        const search = ctx.session.search!;
-        const page = ctx.session.page - 1;
-
-        await ctx.editMessageText(formatSearchResults(search, page), defaultExtra.markup(formatSearchKeyboard(search, page)));
-        ctx.session.page = page;
+        ctx.session.page--;
+        await ctx.editMessageText(formatSearchResults(ctx.session), defaultExtra.markup(formatSearchKeyboard(ctx.session)));
     });
 
     bot.action(/(\d+)/, async (ctx) => {
         console.log(ctx.match);
-        const search = ctx.session.search!;
         const index = Number.parseInt(ctx.match![1]);
-        const anime = search.results[index];
+        const anime = ctx.session.search[index];
         await ctx.editMessageText(`Added ${formatResult(anime)}`, defaultExtra.markup(''));
         
         ctx.session.watchlist.push(watchlistEntry(anime));
         ctx.session.page = 0;
-        ctx.session.search = undefined;
+        ctx.session.search = [];
     });
 
     bot.command('show', (ctx) => {

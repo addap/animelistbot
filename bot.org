@@ -8,3 +8,4 @@
 
 develop locally by using ngrok to proxy webhook
 
+* TODO attribute wallpaper abyss in help command of Bot (or use a @via annotation when posting the image if possible)
