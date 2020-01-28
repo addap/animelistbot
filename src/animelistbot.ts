@@ -6,9 +6,8 @@ const Jikan = require('jikan-node');
 const mal = new Jikan();
 const {TelegrafMongoSession} = require('telegraf-session-mongodb');
 import dotenv from 'dotenv';
-import { formatSearchResults, formatSearchKeyboard, formatWatchlist, formatWatchlistEntry, AnimeListBotSession } from './util';
+import { formatSearchResults, formatSearchKeyboard, formatWatchlist, watchlistEntry, AnimeListBotSession, formatResult } from './util';
 import { ExtraReplyMessage } from 'telegraf/typings/telegram-types';
-import { AssertionError } from 'assert';
 
 dotenv.config();
 
@@ -79,10 +78,9 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
         const search = ctx.session.search!;
         const index = Number.parseInt(ctx.match![1]);
         const anime = search.results[index];
-        await ctx.answerCbQuery(`Added ${anime.title}`);
-        await ctx.editMessageReplyMarkup();
+        await ctx.editMessageText(`Added ${formatResult(anime)}`, defaultExtra.markup(''));
         
-        ctx.session.watchlist.push(formatWatchlistEntry(anime));
+        ctx.session.watchlist.push(watchlistEntry(anime));
         ctx.session.page = 0;
         ctx.session.search = undefined;
     });

@@ -9,7 +9,11 @@ type Result = Search['results'][0];
 export function formatSearchResults(search: Search, page: number): string {
     const start = page * 3;
     const results = search.results.slice(start, start + 3);
-    return results.reduce((s, r, i) => `${s}\n${start+i+1}. [${r.title}](${r.url}) (${moment(r.start_date).year()}) (${r.episodes}e)`, '');
+    return results.reduce((s, r, i) => `${s}\n${start+i+1}. ${formatResult(r)}`, '');
+}
+
+export function formatResult(r: Result): string {
+    return `[${r.title}](${r.url}) (${moment(r.start_date).year()}) (${r.episodes}e)`
 }
 
 export function formatSearchKeyboard(search: Search, page: number): Markup & InlineKeyboardMarkup {
@@ -39,7 +43,7 @@ export function formatWatchlist(watchlist: Watchlist): string {
 
 }
 
-export function formatWatchlistEntry(anime: Result): WatchlistEntry {
+export function watchlistEntry(anime: Result): WatchlistEntry {
     return {
         title: anime.title,
         episode: 0,
