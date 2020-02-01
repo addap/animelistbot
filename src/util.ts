@@ -26,9 +26,9 @@ export function formatSearchKeyboard(session: AnimeListBotSession): Markup & Inl
     if (session.page > 0)
         buttons.push(Markup.callbackButton('<', 'prev'));
     let episodeButtons = [
-        Markup.callbackButton(String(start+1), String(start)),
-        Markup.callbackButton(String(start+2), String(start+1)),
-        Markup.callbackButton(String(start+3), String(start+2))
+        Markup.callbackButton(String(start+1), `add_${String(start)}`),
+        Markup.callbackButton(String(start+2), `add_${String(start+1)}`),
+        Markup.callbackButton(String(start+3), `add_${String(start+2)}`)
     ];
     const maxItems = session.search!.length - start;
     buttons.push(...episodeButtons.slice(0, maxItems));
@@ -40,21 +40,22 @@ export function formatSearchKeyboard(session: AnimeListBotSession): Markup & Inl
 }
 
 export function formatAnimes(watchlist: Anime[]): string {
-    return watchlist.reduce((s, r, i) => `${s}\n${i+1}. [${r.title}](${r.url}) (${r.episode}/${r.episodeMax})`, '');
+    return watchlist.reduce((s, r, i) => `${s}\n${i+1}. [${r.title}](${r.url}) (${r.alias}) (${r.episode}/${r.episodeMax})`, '');
 }
 
 export function formatWatchlist(watchlist: Anime[]): string {
     if (watchlist.length > 0)
         return formatAnimes(watchlist)
     else
-        return "Watchlist empty. You should weeb more 🍣";
+        return "Watchlist empty. You should weeb more 🇯🇵🍣";
 
 }
 
-export async function watchlistEntry(r: Result): Promise<Anime> {
+export async function watchlistEntry(r: Result, alias: string): Promise<Anime> {
     const anime: AnimeById = await mal.findAnime(r.mal_id);
 
     return {
+        alias: alias,
         title_english: anime.title_english,
         title: anime.title,
         episode: 0,
@@ -67,6 +68,7 @@ export async function watchlistEntry(r: Result): Promise<Anime> {
 export interface AnimeListBotSession {
     search: Result[];
     page: number;
+    alias: string;
     watchlist: Anime[];
     finished: Anime[];
     dropped: Anime[];
@@ -74,6 +76,7 @@ export interface AnimeListBotSession {
 }
 
 export interface Anime {
+    alias: string;
     title_english: string;
     title: string;
     episode: number;

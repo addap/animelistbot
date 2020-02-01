@@ -1,16 +1,14 @@
 import Telegraf, {ContextMessageUpdate, Extra} from 'telegraf';
-import TelegrafInlineMenu from 'telegraf-inline-menu';
 // import JikanTS from 'jikants';
 // import MAL from 'jikan-client';
 const Jikan = require('jikan-node');
 const mal = new Jikan();
 const {TelegrafMongoSession} = require('telegraf-session-mongodb');
 import dotenv from 'dotenv';
-import { formatSearchResults, formatSearchKeyboard, formatAnimes, watchlistEntry, AnimeListBotSession, formatResult } from './util';
+import { formatSearchResults, formatSearchKeyboard, formatAnimes, watchlistEntry, AnimeListBotSession, formatResult, Anime } from './util';
 import { ExtraReplyMessage, ExtraPhoto } from 'telegraf/typings/telegram-types';
 import { Search } from 'jikants/dist/src/interfaces/search/Search';
 import rp from 'request-promise-native';
-import { REPL_MODE_SLOPPY } from 'repl';
 
 dotenv.config();
 
@@ -32,8 +30,18 @@ const defaultExtra = Extra.markdown().webPreview(false).notifications(false);
 
 // is there a better way to statically assure that there is a 'session' property?
 const bot: Telegraf<ContextMessageUpdate & { session: AnimeListBotSession }> = new Telegraf(botToken, { username: botName });
+bot.use((ctx, next) => {
+    // console.log(`Id: ${ctx.chat?.id}`);
+    // console.log(`Cb: ${ctx.callbackQuery?.chat_instance}`);
+    // console.log(`From: ${ctx.from?.id}`);
+    if (ctx.chat === undefined)
+        console.warn(`Undefined chat with context ${ctx}`);
+    else 
+        console.log(ctx.chat);
+    return next && next();
+});
 
-TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
+TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unifyGroups: true })
 .then(() => {
     bot.start(async (ctx) => {
         ctx.session.watchlist = [];
@@ -43,12 +51,10 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
         ctx.session.search = [];
         return ctx.reply("Hello, I'm the anime list bot");
     }); 
-    bot.command("test", Telegraf.reply("Successful test"));
 
     bot.hears(/\/add (\w+)/, async (ctx) => {
         // query the myanimelist api for this title
         const title = ctx.match![1];
-        console.log(title);
         // JikanTS does not work b/c of the URL constructor throwing an error. Will be fixed in version 2.0 but not released yet. maybe fix by myself
         // const search = await JikanTS.Search.search(title, "anime");
         // Jikan-client does not work b/c it uses ky which is only for the browser
@@ -59,9 +65,10 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
         ctx.session.search = search.results.filter(({mal_id}) => 
             !ctx.session.watchlist.some((w) => w.mal_id === mal_id));
         ctx.session.page = 0;
+        ctx.session.alias = title.toLowerCase();
 
         if (ctx.session.search.length === 0) {
-            return ctx.reply(`Sorry I could not find anything with that name ${title}`);
+            return ctx.reply(`Sorry I could not find anything with the name (${title})`);
         } else {
             return ctx.reply(formatSearchResults(ctx.session), defaultExtra.markup(formatSearchKeyboard(ctx.session)));
         }
@@ -77,18 +84,17 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
         await ctx.editMessageText(formatSearchResults(ctx.session), defaultExtra.markup(formatSearchKeyboard(ctx.session)));
     });
 
-    bot.action(/(\d+)/, async (ctx) => {
+    bot.action(/add_(\d+)/, async (ctx) => {
         const index = Number.parseInt(ctx.match![1]);
         const anime = ctx.session.search[index];
         await ctx.editMessageText(`Added ${formatResult(anime)}`, defaultExtra.markup(''));
         
-        ctx.session.watchlist.push(await watchlistEntry(anime));
+        ctx.session.watchlist.push(await watchlistEntry(anime, ctx.session.alias));
         ctx.session.page = 0;
         ctx.session.search = [];
     });
 
     bot.command('show', (ctx) => {
-        let s: ExtraReplyMessage
         ctx.reply(formatAnimes(ctx.session.watchlist), defaultExtra.markup(''));
     });
 
@@ -102,13 +108,23 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session' })
         ctx.session.dropped.push(anime);
     });
 
-    bot.hears(/\/watched (\d+) (\d+)/, async (ctx) => {
-        const index = Number.parseInt(ctx.match![1]) - 1;
+    bot.hears(/\/watched (\d+|\w+) (\d+)/, async (ctx) => {
+        let alias: string, index: number, anime: Anime;
+        if (isNaN(Number(ctx.match![1]))) { // passed alias
+            alias = ctx.match![1].toLowerCase();
+            index = ctx.session.watchlist.findIndex((a) => a.alias === alias);
+            if (index === -1)
+                return ctx.reply(`Could not find an anime with that alias,`);
+        }
+        else { // passed index
+            index = Number.parseInt(ctx.match![1]) - 1;
+        
+            if (index < 0 || index >= ctx.session.watchlist.length)
+                return ctx.reply('Index not in range of watchlist 💥');
+        }
+        anime = ctx.session.watchlist[index];
         const amount = Number.parseInt(ctx.match![2]);
-        if (index < 0 || index >= ctx.session.watchlist.length)
-            return ctx.reply('Index not in range of watchlist 💥');
-
-        const anime = ctx.session.watchlist[index];
+        
         anime.episode += amount;
         if (anime.episode >= anime.episodeMax) {
             await ctx.reply(`Finished ${anime.title} 🔥`);
