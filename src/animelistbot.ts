@@ -1,14 +1,16 @@
 import Telegraf, {ContextMessageUpdate, Extra} from 'telegraf';
+import TelegrafInlineMenu from 'telegraf-inline-menu';
 // import JikanTS from 'jikants';
 // import MAL from 'jikan-client';
 const Jikan = require('jikan-node');
 const mal = new Jikan();
 const {TelegrafMongoSession} = require('telegraf-session-mongodb');
 import dotenv from 'dotenv';
-import { formatSearchResults, formatSearchKeyboard, formatAnimes, watchlistEntry, AnimeListBotSession, formatResult, Anime } from './util';
-import { ExtraReplyMessage, ExtraPhoto } from 'telegraf/typings/telegram-types';
+import { formatSearchResults, formatSearchKeyboard, watchlistEntry, AnimeListBotSession, formatResult, Anime, clamp, formatWatchlist, formatUpdates } from './util';
+import { ExtraPhoto } from 'telegraf/typings/telegram-types';
 import { Search } from 'jikants/dist/src/interfaces/search/Search';
 import rp from 'request-promise-native';
+import { ContextFunc } from 'telegraf-inline-menu/dist/source/generic-types';
 
 dotenv.config();
 
@@ -29,26 +31,40 @@ const searchLimit = Number.parseInt(process.env.SEARCH_LIMIT || '15');
 const defaultExtra = Extra.markdown().webPreview(false).notifications(false);
 
 // is there a better way to statically assure that there is a 'session' property?
-const bot: Telegraf<ContextMessageUpdate & { session: AnimeListBotSession }> = new Telegraf(botToken, { username: botName });
-bot.use((ctx, next) => {
+declare type AnimeContext = ContextMessageUpdate & { session: AnimeListBotSession };
+const telegrafOptions = {
+    telegram: {
+        webhookReply: false
+    },
+    username: botName
+}
+const bot: Telegraf<AnimeContext> = new Telegraf(botToken, telegrafOptions);
+bot.use(async (ctx, next) => {
     // console.log(`Id: ${ctx.chat?.id}`);
     // console.log(`Cb: ${ctx.callbackQuery?.chat_instance}`);
     // console.log(`From: ${ctx.from?.id}`);
     if (ctx.chat === undefined)
         console.warn(`Undefined chat with context ${ctx}`);
-    else 
+    else {
         console.log(ctx.chat);
-    return next && next();
+        console.log(ctx.updateType);
+        console.log(ctx.update);
+    }
+    await next!();
 });
+
+bot.catch((err: any) => {
+    console.log(`Uncaught error: ${JSON.stringify(err)}`);
+})
 
 TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unifyGroups: true })
 .then(() => {
     bot.start(async (ctx) => {
         ctx.session.watchlist = [];
-        ctx.session.dropped = [];
-        ctx.session.finished = [];
         ctx.session.page = 0;
         ctx.session.search = [];
+        ctx.session.liveMessages = [];
+        ctx.session.updateIndex = 0;
         return ctx.reply("Hello, I'm the anime list bot");
     }); 
 
@@ -95,7 +111,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
     });
 
     bot.command('show', (ctx) => {
-        ctx.reply(formatAnimes(ctx.session.watchlist), defaultExtra.markup(''));
+        ctx.reply(formatWatchlist(ctx.session.watchlist), defaultExtra.markup(''));
     });
 
     bot.hears(/\/drop (\d+)/, async (ctx) => {
@@ -103,12 +119,12 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         if (index < 0 || index >= ctx.session.watchlist.length)
             return ctx.reply('Index not in range of watchlist 💥');
         
-        const anime = ctx.session.watchlist.splice(index, 1)[0];
+        const anime = ctx.session.watchlist[index];
         await ctx.reply(`Dropped ${anime.title}`);
-        ctx.session.dropped.push(anime);
+        anime.dropped = true;
     });
 
-    bot.hears(/\/watched (\d+|\w+) (\d+)/, async (ctx) => {
+    bot.hears(/\/watched (\d+|\w+) (-?\d+)/, async (ctx) => {
         let alias: string, index: number, anime: Anime;
         if (isNaN(Number(ctx.match![1]))) { // passed alias
             alias = ctx.match![1].toLowerCase();
@@ -125,17 +141,11 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         anime = ctx.session.watchlist[index];
         const amount = Number.parseInt(ctx.match![2]);
         
-        anime.episode += amount;
-        if (anime.episode >= anime.episodeMax) {
-            await ctx.reply(`Finished ${anime.title} 🔥`);
+        anime.episode = clamp(anime.episode + amount, 0, anime.episodeMax);
+        if (anime.episode >= anime.episodeMax)
+            return ctx.reply(`Finished ${anime.title} 🔥`);
 
-            // remove anime from watchlist and put into finished list
-            anime.episode = anime.episodeMax;
-            ctx.session.watchlist.splice(index, 1);
-            ctx.session.finished.push(anime);
-        }
-
-        ctx.reply(`Updated ${anime.title}`);
+        return ctx.reply(`Updated ${anime.title}`);
     });
 
     bot.command('delete', (ctx) => {
@@ -143,13 +153,9 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         ctx.reply('Deleted watchlist');
     });
 
-    // bot.command('dropped', (ctx) => {
-    //     ctx.reply(formatAn)
-    // });
-
     bot.hears(/\/pic/, async (ctx) => {
         if (ctx.session.watchlist.length === 0) {
-            return ctx.reply('Nothing on watchlist to get images from 😠😠😠');
+            return ctx.reply('Nothing on watchlist to get images from.');
         }
 
         const animeIndex = Math.floor(Math.random() * ctx.session.watchlist.length);
@@ -167,6 +173,98 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         }
         
         return ctx.reply('Found no images 😓');
+    });
+
+    const updateMenuText = function(ctx: any): string {
+        return formatUpdates(ctx.session.watchlist, ctx.session.updateIndex);
+    }
+
+    const updateMenu = new TelegrafInlineMenu(updateMenuText);
+    // const updateMenuMiddleware = updateMenu.replyMenuMiddleware().middleware();
+    updateMenu.setCommand('update');
+    // bot.command('update', updateMenuMiddleware);
+
+    // navigation
+    updateMenu.button('⬆️', 'up', {
+        doFunc: (ctx: any) => {
+            ctx.session.updateIndex = clamp(ctx.session.updateIndex - 1, 0, ctx.session.watchlist.length - 1);
+            ctx.answerCbQuery('');
+        }
+    });
+    updateMenu.button('⬇️', 'down', {
+        doFunc: (ctx: any) => {
+            ctx.session.updateIndex = clamp(ctx.session.updateIndex + 1, 0, ctx.session.watchlist.length - 1);
+            ctx.answerCbQuery('');
+        },
+        joinLastRow: true
+    });
+
+    // changing episode counts
+    const changeMenu = new TelegrafInlineMenu(updateMenuText);
+    const changeFunc = function(f: (x: number) => number): ContextFunc<any> {
+        return (ctx: any) => {
+            const anime: Anime = ctx.session.watchlist[ctx.session.updateIndex];
+            anime.episode = clamp(f(anime.episode), 0, anime.episodeMax);
+            ctx.answerCbQuery('');
+        };
+    }
+    // a.d. possible bug, when I set the action code to something like '+3' the buttons do not work
+    // is there some bullshit javascript thing going on when concating the strings?
+    changeMenu.button('-3', 'm3', { doFunc: changeFunc((x => x - 3)) });
+    changeMenu.button('-1', 'm1', { doFunc: changeFunc((x => x - 1)), joinLastRow: true });
+    changeMenu.button('+1', 'p1', { doFunc: changeFunc((x => x + 1)), joinLastRow: true });
+    changeMenu.button('+3', 'p3', { doFunc: changeFunc((x => x + 3)), joinLastRow: true });
+
+    updateMenu.submenu('episodes', 'episodes', changeMenu, {joinLastRow: true});
+    // use manual mode for exit button so that it does not try to draw the menu again afterwards since I delete the message
+    updateMenu.manual('exit', 'exit');
+    bot.action('upd:exit', async (ctx) => {
+            // delete dropped animes
+            ctx.session.watchlist = ctx.session.watchlist.filter((a: Anime) => !a.dropped);
+            ctx.session.updateIndex = 0;
+            await ctx.answerCbQuery('Updated successfully.');
+            await ctx.deleteMessage().catch((err: any) => { console.log(`could not delete message ${err}`)});
+            ctx.session.liveMessages.forEach(async (id) => {
+                await ctx.telegram.editMessageText(ctx.chat!.id, id, undefined, formatWatchlist(ctx.session.watchlist), defaultExtra.markup(''))
+                .catch((err: any) => {
+                    // catch when we update wihtout any changes
+                    if (!err.description.match(/message is not modified/))
+                        throw err;
+                });
+            });
+    });
+
+    updateMenu.question('url', 'url', {
+        uniqueIdentifier: 'urlQuestion',
+        questionText: 'Stream url for this anime?',
+        setFunc: (ctx: any, answer) => {
+            if (answer) {
+                ctx.session.watchlist[ctx.session.updateIndex].stream_url = answer;
+            }
+        },
+        joinLastRow: true
+    })
+    updateMenu.toggle('drop', 'drop', {
+        setFunc: (ctx: any, d: boolean) => {
+            const anime: Anime = ctx.session.watchlist[ctx.session.updateIndex];
+            anime.dropped = d;
+        },
+        isSetFunc: (ctx: any) => {
+            const anime = ctx.session.watchlist[ctx.session.updateIndex];
+            if (anime) 
+                return anime.dropped;
+            else return false;
+        },
+        joinLastRow: true
+    });
+    
+    // init menu
+    bot.use(updateMenu.init({backButtonText: 'back', mainMenuButtonText: 'top', actionCode: 'upd'}));    
+
+    bot.command('live', async (ctx) => {
+        const {message_id} = await ctx.reply(formatWatchlist(ctx.session.watchlist), defaultExtra.markup(''));
+        console.log(`Tracking: ${message_id}`)
+        ctx.session.liveMessages.push (message_id);
     });
 
     bot.startWebhook('/anime', null, 5000);

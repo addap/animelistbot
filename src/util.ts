@@ -1,13 +1,15 @@
 import {Search} from 'jikants/dist/src/interfaces/search/Search';
 import {AnimeById} from 'jikants/dist/src/interfaces/anime/ById';
 import { InlineKeyboardMarkup } from 'telegraf/typings/telegram-types';
-import { Markup, CallbackButton } from 'telegraf';
+import { Markup, CallbackButton, ContextMessageUpdate } from 'telegraf';
 import moment from 'moment';
 const Jikan = require('jikan-node');
 const mal = new Jikan();
 
 // declare Result type here b/c JikanTS does not export it
 type Result = Search['results'][0];
+
+const finished = (a: Anime) => a.episode === a.episodeMax;
 
 export function formatSearchResults(session: AnimeListBotSession): string {
     const start = session.page * 3;
@@ -39,16 +41,40 @@ export function formatSearchKeyboard(session: AnimeListBotSession): Markup & Inl
     return Markup.inlineKeyboard(buttons);
 }
 
-export function formatAnimes(watchlist: Anime[]): string {
-    return watchlist.reduce((s, r, i) => `${s}\n${i+1}. [${r.title}](${r.url}) (${r.alias}) (${r.episode}/${r.episodeMax})`, '');
+function status(a: Anime): string {
+    if (finished(a))
+        return '🏁';
+    else if (a.dropped)
+        return '💩';
+    else
+        return '';
+        return '⏳';
 }
 
-export function formatWatchlist(watchlist: Anime[]): string {
+function formatAnimesUpdate(watchlist: Anime[], index: number): string {
+    return watchlist.reduce((s, r, i) => `${s}\n${i === index ? '*':''}${i+1}. ${status(r)} ${r.title}(${r.episode}/${r.episodeMax})${i === index ? '*':''}`, '');
+}
+
+// format the watchlist when they are updated
+export function formatUpdates(watchlist: Anime[], index: number): string {
     if (watchlist.length > 0)
-        return formatAnimes(watchlist)
+        return formatAnimesUpdate(watchlist, index);
     else
         return "Watchlist empty. You should weeb more 🇯🇵🍣";
+}
 
+function formatAnimes(watchlist: Anime[]): string {
+    return watchlist.reduce((s, r, i) => `${s}\n${i+1}. ${status(r)} [${r.title}](${r.stream_url ? r.stream_url : r.url}) (${r.episode}/${r.episodeMax})`, '');
+}
+
+// formatting a watchlist just for viewing so we don't show finished animes
+export function formatWatchlist(watchlist: Anime[]): string {
+    const filtered = watchlist.filter((a) => !finished(a));
+
+    if (filtered.length > 0)
+        return formatAnimes(watchlist);
+    else
+        return "Watchlist empty. You should weeb more 🇯🇵🍣";
 }
 
 export async function watchlistEntry(r: Result, alias: string): Promise<Anime> {
@@ -61,8 +87,13 @@ export async function watchlistEntry(r: Result, alias: string): Promise<Anime> {
         episode: 0,
         episodeMax: anime.episodes,
         url: anime.url,
-        mal_id: anime.mal_id
+        mal_id: anime.mal_id,
+        dropped: false
     };
+}
+
+export function clamp(x: number, min: number, max: number): number {
+    return Math.min(max, Math.max(x, min));
 }
 
 export interface AnimeListBotSession {
@@ -70,9 +101,8 @@ export interface AnimeListBotSession {
     page: number;
     alias: string;
     watchlist: Anime[];
-    finished: Anime[];
-    dropped: Anime[];
-
+    updateIndex: number;
+    liveMessages: number[];
 }
 
 export interface Anime {
@@ -82,5 +112,7 @@ export interface Anime {
     episode: number;
     episodeMax: number;
     url: string;
+    stream_url?: string;
     mal_id: number;
+    dropped: boolean;
 }
