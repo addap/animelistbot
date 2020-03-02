@@ -103,6 +103,7 @@ export interface AnimeListBotSession {
     watchlist: Anime[];
     updateIndex: number;
     liveMessages: number[];
+    dirty: boolean;
 }
 
 export interface Anime {

@@ -4,6 +4,7 @@
   "description": "",
   "main": "./src/animelistbot.ts",
   "scripts": {
+    "start": "node build/animelistbot.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "tsc": "tsc --build tsconfig.json",
     "dev": "ts-node-dev --respawn src/animelistbot.ts"
@@ -28,7 +29,7 @@
     "request": "^2.88.0",
     "request-promise-native": "^1.0.8",
     "telegraf": "^3.36.0",
-    "telegraf-inline-menu": "^4.0.0",
-    "telegraf-session-mongodb": "file:../telegraf-session-mongodb"
+    "telegraf-inline-menu": "https://github.com/addap/telegraf-inline-menu.git",
+    "telegraf-session-mongodb": "https://github.com/addap/telegraf-session-mongodb.git"
   }
 }
