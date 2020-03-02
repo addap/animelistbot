@@ -1,0 +1,17 @@
+version: '2.0'
+services:
+  animelistbot:
+    image: 'registry.gitlab.com/addapp/animelistbot:latest'
+    restart: 'always'
+    environment:
+      MONGODB_URI: "mongodb://mongodb:27017/anime"
+    ports:
+      - "5000:5000"
+  mongodb:
+    image: 'mongo:4.0-xenial'
+    volumes:
+      - animelistbot_data:/data/db
+    restart: always
+volumes:
+  animelistbot_data:
+    external: true

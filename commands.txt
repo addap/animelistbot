@@ -1,0 +1,5 @@
+help - Show help
+add - +name Add anime 'name' to watchlist
+update - Update watchlist
+live - Show watchlist with live updates
+pic - Send random picture from watchlist

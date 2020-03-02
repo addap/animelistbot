@@ -1,19 +1,14 @@
-/start
-
-/add Title -> Bot does fuzzy lookup of title on myanimelist and returns list of results. inline keyboard to switch between results and choose the correct one
-/watch (alias, amt)+ -> increase the watched counter on the aliases by amt. If the watched counter is the maximum the anime gets moved to done
-/drop alias+ -> move title to dropped
-/set (alias, amt)+ -> secret. just sets the counter
-/url (alias, url) -> set a link to a streaming site where the anime can be watched
-
 develop locally by using ngrok to proxy webhook
 
 * DONE attribute wallpaper abyss in help command of Bot (or use a @via annotation when posting the image if possible)
 * DONE build menu for /watched
-* DONE remove animes that have been watched fully from watchlist and save in finished list
-** just hide them while displaying
-* TODO rewrite in Haskell
+* TODO remove animes that have been watched fully from watchlist and save in finished list
+* TODO rewrite in Haskell (+ telegram api wrapper + MAL api wrapper)
 * DONE be able to add urls to streaming sites for each anime
-* TODO write documentation
+* DONE write help and documentation for commands
 * TODO refactor
-* TODO catch deleted message event so that we don't update deleted live posts
+** helper method to access ctx.session.watchlist[ctx.session.index]
+* DONE catch deleted message event so that we don't update deleted live posts
+** telegram does not support callbacks for deleted messages so we just try/catch the live post update
+* TODO more backends for wallpapers
+* TODO Have an active menu flag so that accidental replies to older messages don't open the update menu again
