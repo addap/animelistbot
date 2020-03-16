@@ -260,8 +260,12 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
     // use manual mode for exit button so that it does not try to draw the menu again afterwards since I delete the message
     updateMenu.manual('exit', 'exit');
     bot.action('upd:exit', async (ctx) => {
-        // delete dropped animes
+        // delete dropped anime
         ctx.session.watchlist = ctx.session.watchlist.filter((a: Anime) => !a.dropped);
+        // move finished anime to finished list
+        ctx.session.finished = ctx.session.watchlist.filter((a: Anime) => a.episode === a.episodeMax);
+        ctx.session.watchlist = ctx.session.watchlist.filter((a: Anime) => a.episode !== a.episodeMax);
+
         ctx.session.updateIndex = 0;
         ctx.session.dirty = true;
         await ctx.answerCbQuery('Updated successfully.');
