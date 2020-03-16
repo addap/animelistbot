@@ -73,6 +73,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
             ctx.session.liveMessages.forEach(async (id) => {
                 await ctx.telegram.editMessageText(ctx.chat!.id, id, undefined, formatWatchlist(ctx.session.watchlist), defaultExtra.markup(''))
                     .catch((err: any) => {
+                        console.error(err);
                         // don't care when we update without any changes
                         if (err.description.match(/message is not modified/))
                             return;
@@ -84,7 +85,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
                         throw err;
                     });
             });
-            ctx.session.liveMessages = ctx.session.liveMessages.filter((id) => deleted.includes(id));
+            ctx.session.liveMessages = ctx.session.liveMessages.filter((id) => !deleted.includes(id));
         }
     });
 
