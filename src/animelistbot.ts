@@ -63,6 +63,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         ctx.session.watchlist = ctx.session.watchlist || [];
         ctx.session.finished = ctx.session.finished || [];
         ctx.session.updateIndex = ctx.session.updateIndex || 0;
+        ctx.session.updateUrl = ctx.session.updateUrl || false;
         ctx.session.liveMessages = ctx.session.liveMessages || [] ;
         ctx.session.dirty = false;
 
@@ -274,14 +275,18 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
 
     updateMenu.question('url', 'url', {
         uniqueIdentifier: 'urlQuestion',
-        questionText: 'Stream url for this anime?',
+        questionText: (ctx: any) => {
+            ctx.session.updateUrl = true;
+            return `@${ctx.from.username} stream url for this anime?`;
+        }, 
         setFunc: (ctx: any, answer: any) => {
-            if (answer) {
+            if (answer && ctx.session.updateUrl) {
                 ctx.session.watchlist[ctx.session.updateIndex].stream_url = answer;
+                ctx.session.updateUrl = false;
             }
         },
         joinLastRow: true,
-        extraMarkup: Markup.selective(false)
+        extraMarkup: Markup.selective(true)
     });
     updateMenu.toggle('drop', 'drop', {
         setFunc: (ctx: any, d: boolean) => {

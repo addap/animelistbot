@@ -101,6 +101,7 @@ export interface AnimeListBotSession {
     watchlist: Anime[];
     finished: Anime[];
     updateIndex: number;
+    updateUrl: false;
     liveMessages: number[];
     dirty: boolean;
 }
