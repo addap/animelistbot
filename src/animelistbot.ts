@@ -56,7 +56,16 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
             console.log(ctx.updateType);
             console.log(ctx.update);
         }
+
+        //set defaults
+        ctx.session.search = ctx.session.search || [];
+        ctx.session.page = ctx.session.page || 0;
+        ctx.session.watchlist = ctx.session.watchlist || [];
+        ctx.session.finished = ctx.session.finished || [];
+        ctx.session.updateIndex = ctx.session.updateIndex || 0;
+        ctx.session.liveMessages = ctx.session.liveMessages || [] ;
         ctx.session.dirty = false;
+
         await next!();
         if (ctx.session.dirty) {
             // a.d. maybe use sth like scramjet to make filtering by promises easier https://stackoverflow.com/questions/47095019/how-to-use-array-prototype-filter-with-async
