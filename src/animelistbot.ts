@@ -23,6 +23,7 @@ function assertDefined(name: string): string {
     return val;
 }
 const botToken = assertDefined("BOT_TOKEN");
+const botPort = Number.parseInt(assertDefined("BOT_PORT"));
 const mongoConnection = assertDefined("MONGODB_URI");
 const botName = assertDefined("BOT_NAME");
 const wallpaperToken = assertDefined("WALLPAPER_TOKEN");
@@ -285,7 +286,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         ctx.session.liveMessages.push(message_id);
     });
 
-    bot.startWebhook('/anime', null, 5000);
+    bot.startWebhook('/anime', null, botPort);
 })
     .catch((err: Error) => console.log(`Failed to connect to database: ${err}`));
 
