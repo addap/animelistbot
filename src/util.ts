@@ -77,11 +77,10 @@ export function formatWatchlist(watchlist: Anime[]): string {
         return "Watchlist empty. You should weeb more 🇯🇵🍣";
 }
 
-export async function watchlistEntry(r: Result, alias: string): Promise<Anime> {
+export async function watchlistEntry(r: Result): Promise<Anime> {
     const anime: AnimeById = await mal.findAnime(r.mal_id);
 
     return {
-        alias: alias,
         title_english: anime.title_english,
         title: anime.title,
         episode: 0,
@@ -99,15 +98,14 @@ export function clamp(x: number, min: number, max: number): number {
 export interface AnimeListBotSession {
     search: Result[];
     page: number;
-    alias: string;
     watchlist: Anime[];
+    finished: Anime[];
     updateIndex: number;
     liveMessages: number[];
     dirty: boolean;
 }
 
 export interface Anime {
-    alias: string;
     title_english: string;
     title: string;
     episode: number;

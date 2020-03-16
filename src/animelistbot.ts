@@ -102,9 +102,10 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         await ctx.reply('I can help organize anime watchlists. You can find me on https://gitlab.com/addapp/animelistbot\n\n/add <name> to search for a name on MAL and add it to the watchlist\n/live so that I send a watchlist message that gets live updates\n/update to update the watchlist\n/pic so that I send a picture of a random anime in the watchlist.');
     });
 
-    bot.hears(RegExp(`^/add(@${botName})? (\\w+)$`), async (ctx) => {
+    bot.hears(RegExp(`^/add(@${botName})? (.+)$`), async (ctx) => {
         // query the myanimelist api for this title
         const title = ctx.match![2];
+
         // JikanTS does not work b/c of the URL constructor throwing an error. Will be fixed in version 2.0 but not released yet. maybe fix by myself
         // const search = await JikanTS.Search.search(title, "anime");
         // Jikan-client does not work b/c it uses ky which is only for the browser
@@ -115,7 +116,6 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         ctx.session.search = search.results.filter(({ mal_id }) =>
             !ctx.session.watchlist.some((w) => w.mal_id === mal_id));
         ctx.session.page = 0;
-        ctx.session.alias = title.toLowerCase();
 
         if (ctx.session.search.length === 0) {
             return ctx.reply(`Sorry I could not find anything with the name (${title})`);
@@ -139,7 +139,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         const anime = ctx.session.search[index];
         await ctx.editMessageText(`Added ${formatResult(anime)}`, defaultExtra.markup(''));
 
-        ctx.session.watchlist.push(await watchlistEntry(anime, ctx.session.alias));
+        ctx.session.watchlist.push(await watchlistEntry(anime));
         ctx.session.page = 0;
         ctx.session.search = [];
         ctx.session.dirty = true;
