@@ -26,7 +26,7 @@ export function formatSearchKeyboard(session: AnimeListBotSession): Markup & Inl
     const start = session.page * 3;
     let buttons: CallbackButton[] = [];
     if (session.page > 0)
-        buttons.push(Markup.callbackButton('<', 'prev'));
+        buttons.push(Markup.callbackButton('<', 'add_prev'));
     let episodeButtons = [
         Markup.callbackButton(String(start+1), `add_${String(start)}`),
         Markup.callbackButton(String(start+2), `add_${String(start+1)}`),
@@ -36,9 +36,9 @@ export function formatSearchKeyboard(session: AnimeListBotSession): Markup & Inl
     buttons.push(...episodeButtons.slice(0, maxItems));
 
     if (maxItems > 3)
-        buttons.push(Markup.callbackButton('>', 'next'));
+        buttons.push(Markup.callbackButton('>', 'add_next'));
 
-    return Markup.inlineKeyboard(buttons);
+    return Markup.inlineKeyboard([buttons, [Markup.callbackButton('exit', 'add_exit')]]);
 }
 
 function status(a: Anime): string {

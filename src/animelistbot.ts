@@ -124,14 +124,20 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         }
     });
 
-    bot.action('next', async (ctx) => {
+    bot.action('add_next', async (ctx) => {
         ctx.session.page++;
         await ctx.editMessageText(formatSearchResults(ctx.session), defaultExtra.markup(formatSearchKeyboard(ctx.session)));
     });
 
-    bot.action('prev', async (ctx) => {
+    bot.action('add_prev', async (ctx) => {
         ctx.session.page--;
         await ctx.editMessageText(formatSearchResults(ctx.session), defaultExtra.markup(formatSearchKeyboard(ctx.session)));
+    });
+
+    bot.action('add_exit', async (ctx) => {
+        ctx.session.page = 0;
+        ctx.session.search = [];
+        await ctx.deleteMessage().catch((err: any) => { console.log(`could not delete message ${err}`) });
     });
 
     bot.action(/add_(\d+)/, async (ctx) => {
@@ -149,44 +155,44 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         ctx.reply(formatWatchlist(ctx.session.watchlist), defaultExtra.markup(''));
     });
 
-    bot.hears(/\/drop (\d+)/, async (ctx) => {
-        const index = Number.parseInt(ctx.match![1]) - 1;
-        if (index < 0 || index >= ctx.session.watchlist.length)
-            return ctx.reply('Index not in range of watchlist 💥');
+    // bot.hears(/\/drop (\d+)/, async (ctx) => {
+    //     const index = Number.parseInt(ctx.match![1]) - 1;
+    //     if (index < 0 || index >= ctx.session.watchlist.length)
+    //         return ctx.reply('Index not in range of watchlist 💥');
 
-        const anime = ctx.session.watchlist[index];
-        await ctx.reply(`Dropped ${anime.title}`);
-        anime.dropped = true;
-    });
+    //     const anime = ctx.session.watchlist[index];
+    //     await ctx.reply(`Dropped ${anime.title}`);
+    //     anime.dropped = true;
+    // });
 
-    bot.hears(/\/watched (\d+|\w+) (-?\d+)/, async (ctx) => {
-        let alias: string, index: number, anime: Anime;
-        if (isNaN(Number(ctx.match![1]))) { // passed alias
-            alias = ctx.match![1].toLowerCase();
-            index = ctx.session.watchlist.findIndex((a) => a.alias === alias);
-            if (index === -1)
-                return ctx.reply(`Could not find an anime with that alias,`);
-        }
-        else { // passed index
-            index = Number.parseInt(ctx.match![1]) - 1;
+    // bot.hears(/\/watched (\d+|\w+) (-?\d+)/, async (ctx) => {
+    //     let alias: string, index: number, anime: Anime;
+    //     if (isNaN(Number(ctx.match![1]))) { // passed alias
+    //         alias = ctx.match![1].toLowerCase();
+    //         index = ctx.session.watchlist.findIndex((a) => a.alias === alias);
+    //         if (index === -1)
+    //             return ctx.reply(`Could not find an anime with that alias,`);
+    //     }
+    //     else { // passed index
+    //         index = Number.parseInt(ctx.match![1]) - 1;
 
-            if (index < 0 || index >= ctx.session.watchlist.length)
-                return ctx.reply('Index not in range of watchlist 💥');
-        }
-        anime = ctx.session.watchlist[index];
-        const amount = Number.parseInt(ctx.match![2]);
+    //         if (index < 0 || index >= ctx.session.watchlist.length)
+    //             return ctx.reply('Index not in range of watchlist 💥');
+    //     }
+    //     anime = ctx.session.watchlist[index];
+    //     const amount = Number.parseInt(ctx.match![2]);
 
-        anime.episode = clamp(anime.episode + amount, 0, anime.episodeMax);
-        if (anime.episode >= anime.episodeMax)
-            return ctx.reply(`Finished ${anime.title} 🔥`);
+    //     anime.episode = clamp(anime.episode + amount, 0, anime.episodeMax);
+    //     if (anime.episode >= anime.episodeMax)
+    //         return ctx.reply(`Finished ${anime.title} 🔥`);
 
-        return ctx.reply(`Updated ${anime.title}`);
-    });
+    //     return ctx.reply(`Updated ${anime.title}`);
+    // });
 
-    bot.command('delete', (ctx) => {
-        ctx.session.watchlist = [];
-        ctx.reply('Deleted watchlist');
-    });
+    // bot.command('delete', (ctx) => {
+    //     ctx.session.watchlist = [];
+    //     ctx.reply('Deleted watchlist');
+    // });
 
     bot.command('pic', async (ctx) => {
         if (ctx.session.watchlist.length === 0) {
