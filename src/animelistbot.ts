@@ -64,7 +64,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         ctx.session.finished = ctx.session.finished || [];
         ctx.session.updateIndex = ctx.session.updateIndex || 0;
         ctx.session.updateUrl = ctx.session.updateUrl || false;
-        ctx.session.liveMessages = ctx.session.liveMessages || [] ;
+        ctx.session.liveMessages = ctx.session.liveMessages || [];
         ctx.session.dirty = false;
 
         await next!();
@@ -264,7 +264,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         // delete dropped anime
         ctx.session.watchlist = ctx.session.watchlist.filter((a: Anime) => !a.dropped);
         // move finished anime to finished list
-        ctx.session.finished = ctx.session.watchlist.filter((a: Anime) => a.episode === a.episodeMax);
+        ctx.session.finished.push(...ctx.session.watchlist.filter((a: Anime) => a.episode === a.episodeMax));
         ctx.session.watchlist = ctx.session.watchlist.filter((a: Anime) => a.episode !== a.episodeMax);
 
         ctx.session.updateIndex = 0;
@@ -278,7 +278,7 @@ TelegrafMongoSession.setup(bot, mongoConnection, { sessionName: 'session', unify
         questionText: (ctx: any) => {
             ctx.session.updateUrl = true;
             return `@${ctx.from.username} stream url for this anime?`;
-        }, 
+        },
         setFunc: (ctx: any, answer: any) => {
             if (answer && ctx.session.updateUrl) {
                 ctx.session.watchlist[ctx.session.updateIndex].stream_url = answer;
